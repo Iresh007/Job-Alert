@@ -1,0 +1,31 @@
+databases:
+  - name: job-alert-db
+    databaseName: job_finder
+    user: job_finder_user
+    plan: free
+
+services:
+  - type: web
+    name: job-alert-app
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: job-alert-db
+          property: connectionString
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: "10000"
+      - key: ENABLE_BOARD_SCRAPERS
+        value: "false"
+      - key: SCAN_INTERVAL_HOURS
+        value: "6"
+      - key: SCRAPE_HEADLESS
+        value: "true"
+      - key: PYTHON_VERSION
+        value: 3.13.1

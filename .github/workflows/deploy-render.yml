@@ -1,0 +1,47 @@
+name: Deploy Render
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-render
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Missing GitHub secret: RENDER_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "Render deployment triggered."
+
+      - name: Health check (optional)
+        env:
+          RENDER_PUBLIC_URL: ${{ secrets.RENDER_PUBLIC_URL }}
+        run: |
+          if [ -z "$RENDER_PUBLIC_URL" ]; then
+            echo "RENDER_PUBLIC_URL not set. Skipping health check."
+            exit 0
+          fi
+
+          HEALTH_URL="${RENDER_PUBLIC_URL%/}/api/health"
+          echo "Checking $HEALTH_URL"
+          for i in {1..20}; do
+            if curl -fsS "$HEALTH_URL"; then
+              echo "Health check passed."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Health check failed after waiting."
+          exit 1

@@ -40,6 +40,21 @@ Useful URLs
 - Scheduler: http://127.0.0.1:5050/api/scheduler/next-runs
 - Excel export: http://127.0.0.1:5050/api/jobs/export/excel?min_score=70&limit=2000
 
+PUBLIC URL DEPLOYMENT (GITHUB ACTIONS + RENDER)
+1. In Render, create Blueprint deploy from this repo (render.yaml included).
+2. In Render service, copy:
+   - Deploy Hook URL
+   - Public URL (example: https://job-alert-app.onrender.com)
+3. In GitHub repo -> Settings -> Secrets and variables -> Actions, create:
+   - RENDER_DEPLOY_HOOK_URL = <deploy hook url>
+   - RENDER_PUBLIC_URL = <public app url>  (optional but recommended)
+4. Push to main branch.
+5. Workflow "Deploy Render" will trigger and deploy automatically.
+6. Open UI at:
+   https://<your-render-app>.onrender.com/
+7. API health:
+   https://<your-render-app>.onrender.com/api/health
+
 Notes
 - Do NOT commit .env or token cache files.
 - If an endpoint returns Not Found, restart the server from this repository folder.

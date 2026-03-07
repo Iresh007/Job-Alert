@@ -13,6 +13,25 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_docker.ps1
 
 Open: `http://127.0.0.1:5050/`
 
+## Public URL Deployment (GitHub -> Render)
+
+This repo now includes:
+
+- `render.yaml` (Render service + Postgres blueprint)
+- `.github/workflows/deploy-render.yml` (auto deploy on `main` push)
+
+### One-time setup
+
+1. In Render, create a **Blueprint** service from this GitHub repo.
+2. In Render service settings, copy:
+- `Deploy Hook` URL
+- Public app URL (example: `https://job-alert-app.onrender.com`)
+3. In GitHub repo settings, add secrets:
+- `RENDER_DEPLOY_HOOK_URL` = Render deploy hook URL
+- `RENDER_PUBLIC_URL` = Render app URL (optional but enables health check step)
+
+After this, every push to `main` triggers deploy automatically.
+
 ### Option B: Local Python
 
 ```powershell
