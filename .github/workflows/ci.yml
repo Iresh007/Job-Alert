@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: job_finder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d job_finder"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/job_finder
+      PYTHONPATH: .
+      ENABLE_BOARD_SCRAPERS: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          python - <<'PY'
+          import time
+          import psycopg
+
+          dsn = "host=127.0.0.1 port=5432 dbname=job_finder user=postgres password=postgres"
+          last = None
+          for _ in range(30):
+              try:
+                  conn = psycopg.connect(dsn, connect_timeout=3)
+                  conn.close()
+                  print("PostgreSQL is ready.")
+                  raise SystemExit(0)
+              except Exception as exc:
+                  last = exc
+                  time.sleep(2)
+          raise SystemExit(f"PostgreSQL not ready: {last}")
+          PY
+
+      - name: Initialize database
+        run: python scripts/init_db.py
+
+      - name: Compile check
+        run: python -m compileall -q app scripts
+
+      - name: API smoke test
+        run: |
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 5050 > api.log 2>&1 &
+          sleep 7
+          curl -fsS http://127.0.0.1:5050/api/health
+
+      - name: Upload API logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: api.log
