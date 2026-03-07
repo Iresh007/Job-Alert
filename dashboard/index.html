@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Autonomous Job Search Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/dashboard/style.css" />
+  </head>
+  <body>
+    <div class="ambient"></div>
+    <main>
+      <header class="hero">
+        <h1>Autonomous Job Search Intelligence Platform</h1>
+        <p>Real-time net-new opportunities for Data Engineering roles in India and Remote.</p>
+        <div class="hero-actions">
+          <button id="runScan">Run Discovery Now</button>
+          <button id="downloadExcel">Download Excel</button>
+          <span id="runStatus">Idle</span>
+        </div>
+      </header>
+
+      <section class="metrics" id="metrics"></section>
+
+      <section>
+        <h2>Next Scheduled Runs</h2>
+        <div id="nextRuns" class="cards"></div>
+      </section>
+
+      <section>
+        <h2>SUPER PRIORITY (Apply within 6 hours)</h2>
+        <div id="superPriority" class="cards"></div>
+      </section>
+
+      <section>
+        <h2>TOP 3 Roles</h2>
+        <div id="topThree" class="cards"></div>
+      </section>
+
+      <section>
+        <h2>Qualified Jobs</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Score</th>
+                <th>Salary Fit</th>
+                <th>Source</th>
+                <th>Flags</th>
+              </tr>
+            </thead>
+            <tbody id="jobsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Posting Heatmap (Hour of Day)</h2>
+        <div id="heatmap" class="heatmap"></div>
+      </section>
+
+      <section>
+        <h2>Settings</h2>
+        <form id="settingsForm" class="settings-grid">
+          <label>Roles (comma separated)<input name="roles" /></label>
+          <label>Locations (comma separated)<input name="locations" /></label>
+          <label>Skills (comma separated)<input name="skills" /></label>
+          <label>Experience Min<input name="experience_min" type="number" /></label>
+          <label>Experience Max<input name="experience_max" type="number" /></label>
+          <label>Salary Min (LPA)<input name="salary_min_lpa" type="number" /></label>
+          <label>Salary Max (LPA)<input name="salary_max_lpa" type="number" /></label>
+          <label>Scan Times (HH:MM comma separated)<input name="scan_times" placeholder="08:00, 12:00, 16:00, 23:00" /></label>
+          <label>Scan Interval Hours<input name="scan_interval_hours" type="number" /></label>
+          <label>Automatic Scheduler Enabled<input name="auto_run_enabled" type="checkbox" /></label>
+          <label>Excluded Companies (comma separated)<input name="excluded_companies" /></label>
+          <button type="submit">Save Settings</button>
+        </form>
+      </section>
+    </main>
+    <script src="/dashboard/app.js"></script>
+  </body>
+</html>

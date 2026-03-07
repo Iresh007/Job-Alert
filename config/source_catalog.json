@@ -1,0 +1,53 @@
+{
+  "greenhouse": [
+    "airbyte",
+    "dbtlabs",
+    "datadog",
+    "snowflake",
+    "plaid",
+    "coinbase",
+    "okta",
+    "samsara",
+    "lyft",
+    "stripe",
+    "robinhood",
+    "instacart",
+    "figma",
+    "doordash",
+    "reddit"
+  ],
+  "lever": [
+    "brillio-2",
+    "rackspace",
+    "binance",
+    "postman",
+    "netlify",
+    "sourcegraph",
+    "circleci"
+  ],
+  "smartrecruiters": [
+    "Visa",
+    "Wolt",
+    "PublicisGroupe",
+    "BoschGroup",
+    "NielsenIQ"
+  ],
+  "ashby": [
+    "openai",
+    "vercel",
+    "notion",
+    "rippling"
+  ],
+  "workday": [
+    {
+      "name": "Cohesity",
+      "search_url": "https://cohesity.wd5.myworkdayjobs.com/wday/cxs/cohesity/Cohesity_External_Career/jobs",
+      "apply_base": "https://cohesity.wd5.myworkdayjobs.com/Cohesity_External_Career"
+    },
+    {
+      "name": "Twilio",
+      "search_url": "https://twilio.wd5.myworkdayjobs.com/wday/cxs/twilio/twilio_careers/jobs",
+      "apply_base": "https://twilio.wd5.myworkdayjobs.com/twilio_careers"
+    }
+  ]
+}
