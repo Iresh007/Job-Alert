@@ -69,6 +69,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_local.ps1
 
 Open: `http://127.0.0.1:5050/`
 Discord bot health: `http://127.0.0.1:5051/health`
+Discord bot detailed health: `http://127.0.0.1:5051/health/details`
 
 ## What This Includes
 
@@ -197,5 +198,7 @@ curl https://<your-app>.onrender.com/api/admin/scan/requests/<request_id> `
 - This repo excludes local-only files (`.env`, `.venv`, logs, results, token cache).
 - The free Render blueprint uses 2 web services and 1 free Postgres database.
 - `job-alert-discord-bot/health` reports both Discord bot health and embedded scan worker health.
+- `job-alert-discord-bot/health` is intentionally compact for Render and external cron checks.
+- Use `job-alert-discord-bot/health/details` when you need extra diagnostic fields.
 - If you get `Not Found` for a new endpoint, restart from this repository folder or redeploy the Render service.
 - Detailed instructions are in `run.txt`.

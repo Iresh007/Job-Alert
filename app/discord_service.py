@@ -101,6 +101,29 @@ def _get_scan_request_with_new_session(request_id: str) -> dict | None:
         db.close()
 
 
+def _build_health_status() -> tuple[int, dict]:
+    if not _bot:
+        return 503, {"status": "unavailable", "reason": "bot_not_started"}
+
+    snapshot = _bot.health_snapshot()
+    boot_grace = datetime.now(timezone.utc) - _started_at < timedelta(seconds=60)
+    overall_healthy = snapshot.get("healthy") and _worker_healthy
+
+    status = "ok"
+    if not overall_healthy and boot_grace:
+        status = "starting"
+    elif not overall_healthy:
+        status = "degraded"
+
+    payload = {
+        "status": status,
+        "healthy": overall_healthy,
+        "bot_healthy": bool(snapshot.get("healthy")),
+        "worker_healthy": _worker_healthy,
+    }
+    return 200, payload
+
+
 @app.on_event("startup")
 async def startup() -> None:
     global _bot, _worker_task, _worker_stop_event
@@ -136,20 +159,32 @@ async def shutdown() -> None:
 
 @app.get("/health")
 def health(response: Response) -> dict:
+    status_code, payload = _build_health_status()
+    response.status_code = status_code
+    return payload
+
+
+@app.get("/health/details")
+def health_details(response: Response) -> dict:
+    status_code, payload = _build_health_status()
+    response.status_code = status_code
     if not _bot:
-        response.status_code = 503
-        return {"status": "unavailable", "reason": "bot_not_started"}
+        return payload
+
     snapshot = _bot.health_snapshot()
-    snapshot["worker_healthy"] = _worker_healthy
-    snapshot["worker_last_error"] = _worker_last_error
-    boot_grace = datetime.now(timezone.utc) - _started_at < timedelta(seconds=60)
-    overall_healthy = snapshot.get("healthy") and _worker_healthy
-    response.status_code = 200
-    if not overall_healthy and boot_grace:
-        snapshot["status"] = "starting"
-    elif not overall_healthy:
-        snapshot["status"] = "degraded"
-    return snapshot
+    payload.update(
+        {
+            "synced": snapshot.get("synced"),
+            "validated_alert_channel": snapshot.get("validated_alert_channel"),
+            "validated_command_guild": snapshot.get("validated_command_guild"),
+            "last_ready_at": snapshot.get("last_ready_at"),
+            "last_disconnect_at": snapshot.get("last_disconnect_at"),
+            "last_error": (snapshot.get("last_error") or "")[:500],
+            "worker_last_error": (_worker_last_error or "")[:500],
+            "discord_user": snapshot.get("discord_user"),
+        }
+    )
+    return payload
 
 
 @app.get("/")
