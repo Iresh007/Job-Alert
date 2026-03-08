@@ -7,8 +7,11 @@ const api = {
   nextRuns: '/api/scheduler/next-runs',
   settings: '/api/settings',
   runScan: '/api/scan/run',
+  scanRequest: (requestId) => `/api/scan/requests/${encodeURIComponent(requestId)}`,
 };
 const API_FALLBACK_BASE = 'http://127.0.0.1:5050';
+const REQUEST_POLL_INTERVAL_MS = 5000;
+const REQUEST_POLL_LIMIT = 180;
 
 const el = (id) => document.getElementById(id);
 
@@ -48,6 +51,48 @@ function populateHeatmap(map) {
     const color = `rgba(0,95,115,${intensity})`;
     host.innerHTML += `<div class="heat" style="background:${color};color:#fff">${String(i).padStart(2, '0')}h<br>${count}</div>`;
   }
+}
+
+function setScheduleWarning(settings) {
+  const warning = el('scheduleWarning');
+  if (!warning) return;
+
+  const autoRunEnabled = settings?.auto_run_enabled ?? true;
+  const isFreeRenderHost = window.location.hostname.includes('onrender');
+  if (!autoRunEnabled || !isFreeRenderHost) {
+    warning.hidden = true;
+    warning.textContent = '';
+    return;
+  }
+
+  warning.hidden = false;
+  warning.textContent = 'Free Render can spin services down when idle. These schedule times are configured, but reliable automatic runs on free Render should use an external cron trigger instead of only the in-app scheduler.';
+}
+
+function formatRequestStatus(request) {
+  const result = request?.result_payload || {};
+  if (request?.status === 'completed') {
+    return `Done: +${result.inserted ?? 0} net-new (${result.super_priority ?? 0} super)`;
+  }
+  if (request?.status === 'failed') {
+    return `Run failed: ${request.error_message || 'Unknown error'}`;
+  }
+  return `Queued: request ${request?.id} is ${request?.status}`;
+}
+
+async function pollScanRequest(requestId, statusEl) {
+  for (let attempt = 0; attempt < REQUEST_POLL_LIMIT; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, REQUEST_POLL_INTERVAL_MS));
+    const request = await fetchJson(api.scanRequest(requestId));
+    statusEl.textContent = formatRequestStatus(request);
+    if (request.status === 'completed' || request.status === 'failed') {
+      await loadDashboard();
+      return request;
+    }
+  }
+
+  statusEl.textContent = `Queued: request ${requestId} is still processing. Check again shortly.`;
+  return null;
 }
 
 async function fetchJson(url, options = {}) {
@@ -135,6 +180,7 @@ async function loadDashboard() {
   }).join('');
 
   populateHeatmap(analytics.posting_heatmap);
+  setScheduleWarning(settings);
 
   const form = el('settingsForm');
   form.roles.value = (settings.roles || []).join(', ');
@@ -156,11 +202,13 @@ async function loadDashboard() {
 
 el('runScan').addEventListener('click', async () => {
   const status = el('runStatus');
-  status.textContent = 'Running...';
+  status.textContent = 'Queueing...';
   try {
-    const result = await fetchJson(api.runScan, { method: 'POST' });
-    status.textContent = `Done: +${result.inserted} net-new (${result.super_priority} super)`;
-    await loadDashboard();
+    const request = await fetchJson(api.runScan, { method: 'POST' });
+    status.textContent = formatRequestStatus(request);
+    if (request?.id) {
+      await pollScanRequest(request.id, status);
+    }
   } catch (err) {
     status.textContent = `Run failed: ${err.message}`;
   }

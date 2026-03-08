@@ -84,6 +84,19 @@ h2 {
   font-size: 1.1rem;
 }
 
+.notice {
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 8px 0 12px;
+  border: 1px solid var(--border);
+}
+
+.notice-warning {
+  background: #fff4dd;
+  border-color: #f2c078;
+  color: #7c3a00;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
