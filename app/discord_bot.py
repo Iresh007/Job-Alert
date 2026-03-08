@@ -89,12 +89,44 @@ class DiscordBotService:
         self._run_scan = run_scan
         self._task: asyncio.Task | None = None
         self._synced = False
+        self._stopping = False
 
         intents = discord.Intents.default()
         self.client = discord.Client(intents=intents)
         self.tree = app_commands.CommandTree(self.client)
         self._register_events()
         self._register_commands()
+
+    def _handle_task_done(self, task: asyncio.Task) -> None:
+        if task.cancelled():
+            print("Discord bot task cancelled.")
+            return
+        try:
+            exc = task.exception()
+        except BaseException as err:
+            print(f"Discord bot task status check failed: {err}")
+            return
+        if exc:
+            print(f"Discord bot task exited with error: {exc}")
+        else:
+            print("Discord bot task exited.")
+
+    async def _run_client_forever(self, token: str) -> None:
+        retry_delay_seconds = 5
+        while not self._stopping:
+            try:
+                await self.client.start(token)
+                if self._stopping:
+                    return
+                print("Discord client stopped unexpectedly. Restarting.")
+            except discord.errors.LoginFailure as exc:
+                print(f"Discord bot login failed: {exc}")
+                return
+            except Exception as exc:
+                if self._stopping:
+                    return
+                print(f"Discord bot connection failed: {exc}. Retrying in {retry_delay_seconds}s.")
+            await asyncio.sleep(retry_delay_seconds)
 
     def _is_authorized(self, interaction: discord.Interaction) -> bool:
         member = interaction.user
@@ -274,14 +306,19 @@ class DiscordBotService:
     async def start(self) -> None:
         token = (settings.discord_bot_token or "").strip()
         if not token:
+            print("Discord bot disabled: DISCORD_BOT_TOKEN is not configured.")
             return
         if self._task and not self._task.done():
             return
-        self._task = asyncio.create_task(self.client.start(token))
+        self._stopping = False
+        print("Starting Discord bot client.")
+        self._task = asyncio.create_task(self._run_client_forever(token))
+        self._task.add_done_callback(self._handle_task_done)
 
     async def stop(self) -> None:
         if not self._task:
             return
+        self._stopping = True
         try:
             await self.client.close()
             await self._task

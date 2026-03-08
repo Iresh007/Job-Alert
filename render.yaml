@@ -53,6 +53,16 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_ALERT_CHANNEL_ID
+        sync: false
+      - key: DISCORD_ADMIN_ROLE_ID
+        sync: false
+      - key: DISCORD_COMMAND_GUILD_ID
+        sync: false
+      - key: DISCORD_ALERT_MAX_PER_RUN
+        value: "50"
       - key: PYTHON_VERSION
         value: 3.13.1
 
