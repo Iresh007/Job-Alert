@@ -132,11 +132,21 @@ class DiscordBotService:
         self._validated_alert_channel = False
         self._validated_command_guild = False
 
+        self._create_client()
+
+    def _create_client(self) -> None:
         intents = discord.Intents.default()
         self.client = discord.Client(intents=intents)
         self.tree = app_commands.CommandTree(self.client)
         self._register_events()
         self._register_commands()
+
+    async def _reset_client(self) -> None:
+        try:
+            await self.client.close()
+        except BaseException:
+            pass
+        self._create_client()
 
     def health_snapshot(self) -> dict[str, Any]:
         return {
@@ -176,20 +186,40 @@ class DiscordBotService:
             log_event("discord_bot_task_exited")
 
     async def _run_client_forever(self, token: str) -> None:
-        retry_delay_seconds = 5
+        retry_delay_seconds = 30
         while not self._stopping:
             try:
                 await self.client.start(token)
                 if self._stopping:
                     return
                 self._set_unhealthy("Discord client stopped unexpectedly. Restarting.")
+                await self._reset_client()
             except discord.errors.LoginFailure as exc:
                 self._set_unhealthy(f"Discord bot login failed: {exc}")
                 return
+            except discord.errors.HTTPException as exc:
+                if self._stopping:
+                    return
+                retry_after_header = getattr(exc.response, "headers", {}).get("Retry-After", "0")
+                try:
+                    retry_after_seconds = max(int(float(retry_after_header)), retry_delay_seconds)
+                except (TypeError, ValueError):
+                    retry_after_seconds = retry_delay_seconds
+                if exc.status == 429:
+                    retry_after_seconds = max(retry_after_seconds, 300)
+                    self._set_unhealthy(
+                        f"Discord bot rate limited. Waiting {retry_after_seconds}s before retrying."
+                    )
+                else:
+                    self._set_unhealthy(f"Discord bot HTTP error {exc.status}: {exc}")
+                await self._reset_client()
+                await asyncio.sleep(retry_after_seconds)
+                continue
             except Exception as exc:
                 if self._stopping:
                     return
                 self._set_unhealthy(f"Discord bot connection failed: {exc}")
+                await self._reset_client()
             await asyncio.sleep(retry_delay_seconds)
 
     def _is_authorized(self, interaction: discord.Interaction) -> bool:
