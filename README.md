@@ -68,6 +68,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_local.ps1
 ```
 
 Open: `http://127.0.0.1:5050/`
+Discord bot health: `http://127.0.0.1:5051/health`
 
 ## What This Includes
 

@@ -9,6 +9,8 @@ Quick Start (Local Python)
    powershell -ExecutionPolicy Bypass -File .\scripts\start_local.ps1
 4. Open dashboard:
    http://127.0.0.1:5050/
+5. Discord bot health:
+   http://127.0.0.1:5051/health
 
 Quick Start (Docker)
 1. Copy env file if missing:
@@ -17,6 +19,8 @@ Quick Start (Docker)
    powershell -ExecutionPolicy Bypass -File .\scripts\start_docker.ps1
 3. Open dashboard:
    http://127.0.0.1:5050/
+4. Discord bot health:
+   http://127.0.0.1:5051/health
 
 What to configure in .env after clone
 - DATABASE_URL (for local Python mode)
@@ -32,6 +36,7 @@ What to configure in .env after clone
 Discord command control (after restart)
 - /job_help
 - /job_run
+- /job_status
 - /job_settings
 - /job_set key value
 - /job_add key value
