@@ -34,14 +34,13 @@ async def _run_pipeline(pipeline: JobPipeline) -> dict:
         db.close()
 
 
-async def main() -> None:
-    init_db()
+async def run_scan_worker(stop_event: asyncio.Event | None = None) -> None:
     queue = ScanQueueService()
     pipeline = JobPipeline()
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     log_event("scan_worker_started", worker_id=worker_id)
 
-    while True:
+    while not (stop_event and stop_event.is_set()):
         db = SessionLocal()
         try:
             reclaimed = queue.reclaim_stale_requests(db)
@@ -86,6 +85,11 @@ async def main() -> None:
                 await heartbeat_task
             except Exception:
                 pass
+
+
+async def main() -> None:
+    init_db()
+    await run_scan_worker()
 
 
 if __name__ == "__main__":
