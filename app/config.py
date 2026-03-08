@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     outlook_client_id: str = Field(default="", alias="OUTLOOK_CLIENT_ID")
     outlook_tenant: str = Field(default="consumers", alias="OUTLOOK_TENANT")
     outlook_graph_scopes: str = Field(
-        default="https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read,offline_access",
+        default="https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read",
         alias="OUTLOOK_GRAPH_SCOPES",
     )
     outlook_token_cache_file: str = Field(default=".outlook_graph_token_cache.bin", alias="OUTLOOK_TOKEN_CACHE_FILE")
@@ -62,7 +62,9 @@ class Settings(BaseSettings):
 
     @property
     def outlook_scope_list(self) -> List[str]:
-        return [item.strip() for item in self.outlook_graph_scopes.split(",") if item.strip()]
+        reserved = {"openid", "profile", "offline_access"}
+        scopes = [item.strip() for item in self.outlook_graph_scopes.split(",") if item.strip()]
+        return [scope for scope in scopes if scope.lower() not in reserved]
 
     @property
     def outlook_cache_path(self) -> Path:

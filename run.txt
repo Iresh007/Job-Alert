@@ -23,6 +23,7 @@ What to configure in .env after clone
 - TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
 - EMAIL_PROVIDER=outlook_graph
 - OUTLOOK_CLIENT_ID, OUTLOOK_TENANT, OUTLOOK_GRAPH_SCOPES, EMAIL_TO
+  (Use Graph scopes like Mail.Send,User.Read; do not include reserved scopes such as offline_access)
 
 Outlook OAuth one-time setup
 1. Ensure OUTLOOK_CLIENT_ID is set in .env

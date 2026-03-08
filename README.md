@@ -69,7 +69,7 @@ EMAIL_PROVIDER=outlook_graph
 EMAIL_TO=<receiver_email>
 OUTLOOK_CLIENT_ID=<azure_app_client_id>
 OUTLOOK_TENANT=consumers
-OUTLOOK_GRAPH_SCOPES=https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read,offline_access
+OUTLOOK_GRAPH_SCOPES=https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read
 OUTLOOK_TOKEN_CACHE_FILE=.outlook_graph_token_cache.bin
 ```
 
