@@ -24,8 +24,14 @@ class NotificationService:
             return False
 
     def send_email(self, subject: str, message: str) -> bool:
-        if (settings.email_provider or "smtp").lower() == "outlook_graph":
-            return self.send_email_via_outlook_graph(subject, message)
+        provider = (settings.email_provider or "smtp").lower()
+        if provider == "outlook_graph" and self.send_email_via_outlook_graph(subject, message):
+            return True
+        if provider == "outlook_graph":
+            print("Outlook Graph send failed; falling back to SMTP if configured.")
+        return self.send_email_via_smtp(subject, message)
+
+    def send_email_via_smtp(self, subject: str, message: str) -> bool:
         if not settings.email_host or not settings.email_to:
             return False
         msg = MIMEText(message, "plain", "utf-8")

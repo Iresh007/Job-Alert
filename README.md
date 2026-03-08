@@ -29,6 +29,13 @@ This repo now includes:
 3. In GitHub repo settings, add secrets:
 - `RENDER_DEPLOY_HOOK_URL` = Render deploy hook URL
 - `RENDER_PUBLIC_URL` = Render app URL (optional but enables health check step)
+4. In Render service -> `Environment`, set values for:
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `EMAIL_TO`
+- `EMAIL_USERNAME` and `EMAIL_PASSWORD` (for SMTP fallback)
+- `EMAIL_FROM` (usually same as `EMAIL_USERNAME`)
+- `OUTLOOK_CLIENT_ID` (for Graph OAuth mode)
 
 After this, every push to `main` triggers deploy automatically.
 
@@ -72,6 +79,9 @@ OUTLOOK_TENANT=consumers
 OUTLOOK_GRAPH_SCOPES=https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read
 OUTLOOK_TOKEN_CACHE_FILE=.outlook_graph_token_cache.bin
 ```
+
+For Render deployments, no `.env` file is committed. Configure these keys in Render `Environment`.
+If Outlook Graph token is missing, the app now falls back to SMTP when SMTP settings are present.
 
 One-time auth:
 

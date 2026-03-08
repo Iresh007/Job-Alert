@@ -49,15 +49,24 @@ PUBLIC URL DEPLOYMENT (GITHUB ACTIONS + RENDER)
 3. In GitHub repo -> Settings -> Secrets and variables -> Actions, create:
    - RENDER_DEPLOY_HOOK_URL = <deploy hook url>
    - RENDER_PUBLIC_URL = <public app url>  (optional but recommended)
-4. Push to main branch.
-5. Workflow "Deploy Render" will trigger and deploy automatically.
-6. Open UI at:
+4. In Render service -> Environment, set:
+   - TELEGRAM_BOT_TOKEN
+   - TELEGRAM_CHAT_ID
+   - EMAIL_TO
+   - EMAIL_USERNAME
+   - EMAIL_PASSWORD
+   - EMAIL_FROM
+   - OUTLOOK_CLIENT_ID
+5. Push to main branch.
+6. Workflow "Deploy Render" will trigger and deploy automatically.
+7. Open UI at:
    https://<your-render-app>.onrender.com/
-7. API health:
+8. API health:
    https://<your-render-app>.onrender.com/api/health
 
 Notes
 - Do NOT commit .env or token cache files.
+- Render does not read your local .env; configure secrets in Render Environment.
 - If an endpoint returns Not Found, restart the server from this repository folder.
 
 

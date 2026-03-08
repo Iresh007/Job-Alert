@@ -27,6 +27,32 @@ services:
         value: "6"
       - key: SCRAPE_HEADLESS
         value: "true"
+      - key: EMAIL_PROVIDER
+        value: outlook_graph
+      - key: EMAIL_HOST
+        value: smtp.office365.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USERNAME
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_TO
+        sync: false
+      - key: OUTLOOK_CLIENT_ID
+        sync: false
+      - key: OUTLOOK_TENANT
+        value: consumers
+      - key: OUTLOOK_GRAPH_SCOPES
+        value: https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read
+      - key: OUTLOOK_TOKEN_CACHE_FILE
+        value: .outlook_graph_token_cache.bin
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
       - key: PYTHON_VERSION
         value: 3.13.1
 
