@@ -179,6 +179,12 @@ curl -X POST https://<your-app>.onrender.com/api/admin/scan/run `
   -H "X-Admin-Token: <ADMIN_API_TOKEN>"
 ```
 
+Cron-friendly trigger when your scheduler only supports `GET`:
+
+```text
+https://<your-app>.onrender.com/api/admin/scan/run?admin_token=<ADMIN_API_TOKEN>
+```
+
 Read request status:
 
 ```powershell

@@ -174,11 +174,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-def _require_admin_token(x_admin_token: str | None = None) -> None:
+def _require_admin_token(x_admin_token: str | None = None, admin_token: str | None = None) -> None:
     configured = (settings.admin_api_token or "").strip()
     if not configured:
         raise HTTPException(status_code=503, detail="ADMIN_API_TOKEN is not configured.")
-    if x_admin_token != configured:
+    provided = (x_admin_token or admin_token or "").strip()
+    if provided != configured:
         raise HTTPException(status_code=403, detail="Invalid admin token.")
 
 
@@ -202,9 +203,12 @@ def read_scan_request(request_id: str, db: Session = Depends(get_session)) -> di
     return scan_queue.to_dict(request)
 
 
-@app.post("/api/admin/scan/run", response_model=ScanRequestOut)
-def admin_run_scan(x_admin_token: str | None = Header(default=None)) -> dict:
-    _require_admin_token(x_admin_token)
+@app.api_route("/api/admin/scan/run", methods=["GET", "POST"], response_model=ScanRequestOut)
+def admin_run_scan(
+    x_admin_token: str | None = Header(default=None),
+    admin_token: str | None = Query(default=None),
+) -> dict:
+    _require_admin_token(x_admin_token, admin_token)
     request = _enqueue_scan_request_with_new_session(
         trigger_source="admin_api",
         requested_by="admin_api",
