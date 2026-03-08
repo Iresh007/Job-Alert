@@ -75,3 +75,26 @@ class UserSetting(Base):
     key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     value: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ScanRequest(Base):
+    __tablename__ = "scan_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    trigger_source: Mapped[str] = mapped_column(String(50), index=True, default="manual")
+    status: Mapped[str] = mapped_column(String(30), index=True, default="queued")
+    requested_by: Mapped[str] = mapped_column(String(255), default="")
+    requested_by_id: Mapped[str] = mapped_column(String(100), default="")
+    request_channel_id: Mapped[str] = mapped_column(String(100), default="")
+    request_guild_id: Mapped[str] = mapped_column(String(100), default="")
+    worker_id: Mapped[str] = mapped_column(String(255), default="")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    request_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    result_payload: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
