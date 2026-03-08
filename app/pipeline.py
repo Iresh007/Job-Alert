@@ -47,7 +47,7 @@ class JobPipeline:
         try:
             fetched_jobs = await discovery.fetch_all(roles=roles, locations=locations)
             normalized = [self._normalize_job(item) for item in fetched_jobs if item.get("url") and item.get("title")]
-            inserted, qualified, super_jobs = self.repository.save_jobs(
+            inserted, qualified, super_jobs, alert_jobs = self.repository.save_jobs(
                 db,
                 normalized,
                 excluded_companies,
@@ -60,6 +60,26 @@ class JobPipeline:
                 inserted=inserted,
                 qualified=qualified,
             )
+            await self.notifier.notify_discord_run(
+                alert_jobs,
+                run_summary={
+                    "run_id": run.id,
+                    "fetched": len(normalized),
+                    "inserted": inserted,
+                    "qualified": qualified,
+                    "super_priority": len(super_jobs),
+                },
+            )
+            await self.notifier.notify_all_jobs(
+                alert_jobs,
+                run_summary={
+                    "run_id": run.id,
+                    "fetched": len(normalized),
+                    "inserted": inserted,
+                    "qualified": qualified,
+                    "super_priority": len(super_jobs),
+                },
+            )
             await self.notifier.notify_super_priority(super_jobs)
             return {
                 "run_id": run.id,
@@ -70,6 +90,17 @@ class JobPipeline:
             }
         except Exception as exc:
             self.repository.finalize_run(db, run, fetched=0, inserted=0, qualified=0, error=str(exc))
+            await self.notifier.notify_discord_run(
+                [],
+                run_summary={
+                    "run_id": run.id,
+                    "fetched": 0,
+                    "inserted": 0,
+                    "qualified": 0,
+                    "super_priority": 0,
+                    "error": str(exc),
+                },
+            )
             return {
                 "run_id": run.id,
                 "fetched": 0,

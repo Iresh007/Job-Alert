@@ -21,8 +21,21 @@ Quick Start (Docker)
 What to configure in .env after clone
 - DATABASE_URL (for local Python mode)
 - TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+- TELEGRAM_NOTIFY_ALL_JOBS=true, TELEGRAM_ALERT_MAX_PER_RUN=20
 - EMAIL_PROVIDER=outlook_graph
 - OUTLOOK_CLIENT_ID, OUTLOOK_TENANT, OUTLOOK_GRAPH_SCOPES, EMAIL_TO
+- EMAIL_NOTIFY_ALL_JOBS=true, EMAIL_ALERT_MAX_PER_RUN=50
+- DISCORD_BOT_TOKEN, DISCORD_ALERT_CHANNEL_ID
+- Optional: DISCORD_ADMIN_ROLE_ID, DISCORD_COMMAND_GUILD_ID, DISCORD_ALERT_MAX_PER_RUN
+
+Discord command control (after restart)
+- /job_help
+- /job_run
+- /job_settings
+- /job_set key value
+- /job_add key value
+- /job_remove key value
+Note: for list settings (roles, locations, skills, scan_times, excluded_companies), pass comma-separated values.
 
 Outlook OAuth one-time setup
 1. Ensure OUTLOOK_CLIENT_ID is set in .env
