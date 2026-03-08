@@ -3,18 +3,23 @@ from __future__ import annotations
 import asyncio
 import re
 from copy import deepcopy
-from typing import Any, Awaitable, Callable
+from datetime import datetime, timezone
+from typing import Any, Callable
 
 import discord
 from discord import app_commands
 
 from app.config import settings
+from app.logging_utils import log_event
+from app.scan_queue import TERMINAL_SCAN_STATUSES
 
 
 LIST_KEYS = {"roles", "locations", "skills", "scan_times", "excluded_companies"}
 INT_KEYS = {"experience_min", "experience_max", "salary_min_lpa", "salary_max_lpa", "scan_interval_hours"}
 BOOL_KEYS = {"auto_run_enabled"}
 TIME_PATTERN = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
+REQUEST_POLL_SECONDS = 5
+REQUEST_POLL_ATTEMPTS = 180
 
 
 def _split_csv(value: str) -> list[str]:
@@ -77,19 +82,55 @@ def _profile_summary(profile: dict[str, Any]) -> str:
     return text[:1900]
 
 
+def _format_scan_status(request: dict[str, Any]) -> str:
+    result = request.get("result_payload") or {}
+    lines = [
+        f"request_id={request.get('id')}",
+        f"status={request.get('status')}",
+        f"trigger_source={request.get('trigger_source')}",
+    ]
+    if request.get("started_at"):
+        lines.append(f"started_at={request.get('started_at')}")
+    if request.get("finished_at"):
+        lines.append(f"finished_at={request.get('finished_at')}")
+    if request.get("error_message"):
+        lines.append(f"error={request.get('error_message')}")
+    if request.get("status") == "completed":
+        lines.append(
+            "result="
+            f"run_id={result.get('run_id')} | fetched={result.get('fetched')} | inserted={result.get('inserted')} | "
+            f"qualified={result.get('qualified')} | super_priority={result.get('super_priority')}"
+        )
+    elif request.get("status") == "failed":
+        lines.append(
+            "result="
+            f"run_id={result.get('run_id')} | fetched={result.get('fetched')} | inserted={result.get('inserted')} | "
+            f"qualified={result.get('qualified')}"
+        )
+    return "\n".join(lines)[:1900]
+
+
 class DiscordBotService:
     def __init__(
         self,
         get_profile: Callable[[], dict[str, Any]],
         update_profile: Callable[[dict[str, Any]], dict[str, Any]],
-        run_scan: Callable[[], Awaitable[dict[str, Any]]],
+        enqueue_scan: Callable[..., tuple[dict[str, Any], bool]],
+        get_scan_request: Callable[[str], dict[str, Any] | None],
     ) -> None:
         self._get_profile = get_profile
         self._update_profile = update_profile
-        self._run_scan = run_scan
+        self._enqueue_scan = enqueue_scan
+        self._get_scan_request = get_scan_request
         self._task: asyncio.Task | None = None
         self._synced = False
         self._stopping = False
+        self._healthy = False
+        self._last_error = ""
+        self._last_ready_at: str | None = None
+        self._last_disconnect_at: str | None = None
+        self._validated_alert_channel = False
+        self._validated_command_guild = False
 
         intents = discord.Intents.default()
         self.client = discord.Client(intents=intents)
@@ -97,19 +138,42 @@ class DiscordBotService:
         self._register_events()
         self._register_commands()
 
+    def health_snapshot(self) -> dict[str, Any]:
+        return {
+            "status": "ok" if self._healthy else "degraded",
+            "healthy": self._healthy,
+            "synced": self._synced,
+            "validated_alert_channel": self._validated_alert_channel,
+            "validated_command_guild": self._validated_command_guild,
+            "last_ready_at": self._last_ready_at,
+            "last_disconnect_at": self._last_disconnect_at,
+            "last_error": self._last_error,
+            "discord_user": str(self.client.user) if self.client.user else "",
+        }
+
+    def _set_unhealthy(self, error_message: str) -> None:
+        self._healthy = False
+        self._last_error = error_message
+        log_event("discord_bot_unhealthy", level="warning", error=error_message)
+
+    def _mark_healthy(self) -> None:
+        self._healthy = True
+        self._last_error = ""
+        self._last_ready_at = datetime.now(timezone.utc).isoformat()
+
     def _handle_task_done(self, task: asyncio.Task) -> None:
         if task.cancelled():
-            print("Discord bot task cancelled.")
+            log_event("discord_bot_task_cancelled")
             return
         try:
             exc = task.exception()
         except BaseException as err:
-            print(f"Discord bot task status check failed: {err}")
+            self._set_unhealthy(f"Discord bot task status check failed: {err}")
             return
         if exc:
-            print(f"Discord bot task exited with error: {exc}")
+            self._set_unhealthy(f"Discord bot task exited with error: {exc}")
         else:
-            print("Discord bot task exited.")
+            log_event("discord_bot_task_exited")
 
     async def _run_client_forever(self, token: str) -> None:
         retry_delay_seconds = 5
@@ -118,14 +182,14 @@ class DiscordBotService:
                 await self.client.start(token)
                 if self._stopping:
                     return
-                print("Discord client stopped unexpectedly. Restarting.")
+                self._set_unhealthy("Discord client stopped unexpectedly. Restarting.")
             except discord.errors.LoginFailure as exc:
-                print(f"Discord bot login failed: {exc}")
+                self._set_unhealthy(f"Discord bot login failed: {exc}")
                 return
             except Exception as exc:
                 if self._stopping:
                     return
-                print(f"Discord bot connection failed: {exc}. Retrying in {retry_delay_seconds}s.")
+                self._set_unhealthy(f"Discord bot connection failed: {exc}")
             await asyncio.sleep(retry_delay_seconds)
 
     def _is_authorized(self, interaction: discord.Interaction) -> bool:
@@ -152,25 +216,70 @@ class DiscordBotService:
         await self._deny(interaction)
         return False
 
+    async def _validate_startup_configuration(self) -> None:
+        channel_id = settings.discord_alert_channel_id_int
+        if not channel_id:
+            raise RuntimeError("DISCORD_ALERT_CHANNEL_ID is missing or invalid.")
+        channel = self.client.get_channel(channel_id)
+        if channel is None:
+            channel = await self.client.fetch_channel(channel_id)
+        self._validated_alert_channel = channel is not None
+
+        guild_id = settings.discord_command_guild_id_int
+        if guild_id:
+            guild = self.client.get_guild(guild_id)
+            if guild is None:
+                guild = await self.client.fetch_guild(guild_id)
+            self._validated_command_guild = guild is not None
+        else:
+            self._validated_command_guild = True
+
+    async def _track_scan_request(self, interaction: discord.Interaction, request_id: str) -> None:
+        for _ in range(REQUEST_POLL_ATTEMPTS):
+            await asyncio.sleep(REQUEST_POLL_SECONDS)
+            request = self._get_scan_request(request_id)
+            if not request:
+                return
+            if request.get("status") in TERMINAL_SCAN_STATUSES:
+                await interaction.followup.send(_format_scan_status(request), ephemeral=True)
+                return
+        request = self._get_scan_request(request_id)
+        if request:
+            await interaction.followup.send(
+                f"Scan request is still {request.get('status')}. Use /job_status request_id:{request_id}",
+                ephemeral=True,
+            )
+
     def _register_events(self) -> None:
         @self.client.event
         async def on_ready() -> None:
-            if self._synced:
-                return
             try:
-                guild_id = settings.discord_command_guild_id_int
-                if guild_id:
-                    guild = discord.Object(id=guild_id)
-                    self.tree.copy_global_to(guild=guild)
-                    synced = await self.tree.sync(guild=guild)
-                    print(f"Discord commands synced to guild {guild_id}: {len(synced)}")
-                else:
-                    synced = await self.tree.sync()
-                    print(f"Discord global commands synced: {len(synced)}")
-                self._synced = True
+                await self._validate_startup_configuration()
+                if not self._synced:
+                    guild_id = settings.discord_command_guild_id_int
+                    if guild_id:
+                        guild = discord.Object(id=guild_id)
+                        self.tree.copy_global_to(guild=guild)
+                        synced = await self.tree.sync(guild=guild)
+                        log_event("discord_commands_synced", scope="guild", guild_id=guild_id, count=len(synced))
+                    else:
+                        synced = await self.tree.sync()
+                        log_event("discord_commands_synced", scope="global", count=len(synced))
+                    self._synced = True
+                self._mark_healthy()
+                log_event("discord_bot_connected", user=str(self.client.user))
             except Exception as exc:
-                print(f"Discord command sync failed: {exc}")
-            print(f"Discord bot connected as {self.client.user}")
+                self._set_unhealthy(f"Discord startup validation failed: {exc}")
+
+        @self.client.event
+        async def on_disconnect() -> None:
+            self._last_disconnect_at = datetime.now(timezone.utc).isoformat()
+            self._set_unhealthy("Discord gateway disconnected.")
+
+        @self.client.event
+        async def on_resumed() -> None:
+            self._mark_healthy()
+            log_event("discord_gateway_resumed")
 
     def _register_commands(self) -> None:
         setting_choices = [
@@ -198,7 +307,8 @@ class DiscordBotService:
         async def job_help(interaction: discord.Interaction) -> None:
             lines = [
                 "Commands",
-                "/job_run - Trigger scan now.",
+                "/job_run - Queue a scan now.",
+                "/job_status request_id - Check a queued or completed scan.",
                 "/job_settings - Show current settings.",
                 "/job_set key value - Replace a setting value.",
                 "/job_add key value - Add item(s) to a list setting.",
@@ -207,28 +317,44 @@ class DiscordBotService:
             ]
             await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
-        @self.tree.command(name="job_run", description="Run job scan now and post alerts.")
+        @self.tree.command(name="job_run", description="Queue a job scan and report the result.")
         async def job_run(interaction: discord.Interaction) -> None:
             if not await self._require_authorized(interaction):
                 return
             await interaction.response.defer(ephemeral=True, thinking=True)
-            try:
-                result = await self._run_scan()
-                if result.get("error"):
-                    message = (
-                        f"Scan failed.\nrun_id={result.get('run_id')} | fetched={result.get('fetched')} | "
-                        f"inserted={result.get('inserted')} | qualified={result.get('qualified')}\n"
-                        f"error={result.get('error')}"
-                    )
-                else:
-                    message = (
-                        f"Scan completed.\nrun_id={result.get('run_id')} | fetched={result.get('fetched')} | "
-                        f"inserted={result.get('inserted')} | qualified={result.get('qualified')} | "
-                        f"super_priority={result.get('super_priority')}"
-                    )
-                await interaction.followup.send(message, ephemeral=True)
-            except Exception as exc:
-                await interaction.followup.send(f"Scan failed: {exc}", ephemeral=True)
+            request, created = self._enqueue_scan(
+                trigger_source="discord",
+                requested_by=str(interaction.user),
+                requested_by_id=str(interaction.user.id),
+                request_channel_id=str(interaction.channel_id or ""),
+                request_guild_id=str(interaction.guild_id or ""),
+                request_metadata={
+                    "interaction_id": str(interaction.id),
+                    "user_name": str(interaction.user),
+                },
+            )
+            if created:
+                await interaction.followup.send(
+                    f"Queued scan request. request_id={request.get('id')}\nI will report the result here when it finishes.",
+                    ephemeral=True,
+                )
+            else:
+                await interaction.followup.send(
+                    f"A scan is already {request.get('status')}. request_id={request.get('id')}",
+                    ephemeral=True,
+                )
+            asyncio.create_task(self._track_scan_request(interaction, request.get("id", "")))
+
+        @self.tree.command(name="job_status", description="Check the status of a queued or completed scan.")
+        @app_commands.describe(request_id="Queued scan request ID")
+        async def job_status(interaction: discord.Interaction, request_id: str) -> None:
+            if not await self._require_authorized(interaction):
+                return
+            request = self._get_scan_request(request_id.strip())
+            if not request:
+                await interaction.response.send_message("Scan request not found.", ephemeral=True)
+                return
+            await interaction.response.send_message(_format_scan_status(request), ephemeral=True)
 
         @self.tree.command(name="job_settings", description="Show current job search profile.")
         async def job_settings(interaction: discord.Interaction) -> None:
@@ -306,12 +432,12 @@ class DiscordBotService:
     async def start(self) -> None:
         token = (settings.discord_bot_token or "").strip()
         if not token:
-            print("Discord bot disabled: DISCORD_BOT_TOKEN is not configured.")
+            self._set_unhealthy("DISCORD_BOT_TOKEN is not configured.")
             return
         if self._task and not self._task.done():
             return
         self._stopping = False
-        print("Starting Discord bot client.")
+        log_event("discord_bot_starting")
         self._task = asyncio.create_task(self._run_client_forever(token))
         self._task.add_done_callback(self._handle_task_done)
 
@@ -326,3 +452,4 @@ class DiscordBotService:
             pass
         finally:
             self._task = None
+            self._healthy = False

@@ -27,6 +27,51 @@ services:
         value: "6"
       - key: SCRAPE_HEADLESS
         value: "true"
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.13.1
+
+  - type: web
+    name: job-alert-discord-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.discord_service:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: job-alert-db
+          property: connectionString
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_ALERT_CHANNEL_ID
+        sync: false
+      - key: DISCORD_ADMIN_ROLE_ID
+        sync: false
+      - key: DISCORD_COMMAND_GUILD_ID
+        sync: false
+      - key: DISCORD_ALERT_MAX_PER_RUN
+        value: "50"
+      - key: PYTHON_VERSION
+        value: 3.13.1
+
+  - type: worker
+    name: job-alert-scan-worker
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python -m app.scan_worker
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: job-alert-db
+          property: connectionString
+      - key: ENABLE_BOARD_SCRAPERS
+        value: "false"
+      - key: SCRAPE_HEADLESS
+        value: "true"
       - key: EMAIL_PROVIDER
         value: outlook_graph
       - key: EMAIL_HOST

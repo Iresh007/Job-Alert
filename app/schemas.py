@@ -48,3 +48,23 @@ class AnalyticsOut(BaseModel):
     super_priority_count: int
     top_three_titles: List[str]
     posting_heatmap: dict
+
+
+class ScanRequestOut(BaseModel):
+    id: str
+    status: str
+    trigger_source: str
+    requested_by: str
+    requested_by_id: str
+    request_channel_id: str
+    request_guild_id: str
+    requested_at: datetime
+    claimed_at: datetime | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    heartbeat_at: datetime | None
+    worker_id: str
+    attempt_count: int
+    error_message: str
+    request_metadata: dict
+    result_payload: dict
