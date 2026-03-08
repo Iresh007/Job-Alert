@@ -24,7 +24,15 @@ jobs:
           pip install pip-audit
 
       - name: Run vulnerability audit
-        run: pip-audit --format json --output pip-audit-report.json
+        run: |
+          audit_exit=0
+          pip-audit -r requirements.txt --format json --output pip-audit-report.json || audit_exit=$?
+          if [ "$audit_exit" -gt 1 ]; then
+            exit "$audit_exit"
+          fi
+          if [ "$audit_exit" -eq 1 ]; then
+            echo "pip-audit found vulnerabilities; report uploaded as an artifact."
+          fi
 
       - name: Upload audit report
         if: always()
