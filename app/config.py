@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     discord_admin_role_id: str = Field(default="", alias="DISCORD_ADMIN_ROLE_ID")
     discord_command_guild_id: str = Field(default="", alias="DISCORD_COMMAND_GUILD_ID")
     discord_alert_max_per_run: int = Field(default=50, alias="DISCORD_ALERT_MAX_PER_RUN")
+    discord_sync_commands_on_startup: bool = Field(default=False, alias="DISCORD_SYNC_COMMANDS_ON_STARTUP")
+    discord_validate_startup_resources: bool = Field(default=False, alias="DISCORD_VALIDATE_STARTUP_RESOURCES")
     admin_api_token: str = Field(default="", alias="ADMIN_API_TOKEN")
 
     default_excluded_companies: str = Field(default="EXL Services", alias="DEFAULT_EXCLUDED_COMPANIES")

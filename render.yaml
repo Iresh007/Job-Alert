@@ -54,6 +54,10 @@ services:
         sync: false
       - key: DISCORD_ALERT_MAX_PER_RUN
         value: "50"
+      - key: DISCORD_SYNC_COMMANDS_ON_STARTUP
+        value: "false"
+      - key: DISCORD_VALIDATE_STARTUP_RESOURCES
+        value: "false"
       - key: ENABLE_BOARD_SCRAPERS
         value: "false"
       - key: SCRAPE_HEADLESS

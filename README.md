@@ -32,6 +32,7 @@ This repo now includes:
 - Public app URL (example: `https://job-alert-app.onrender.com`)
 4. In GitHub repo settings, add secrets:
 - `RENDER_DEPLOY_HOOK_URL` = Render deploy hook URL
+- `RENDER_DISCORD_BOT_DEPLOY_HOOK_URL` = Discord bot Render deploy hook URL (recommended)
 - `RENDER_PUBLIC_URL` = Render app URL (optional but enables health check step)
 5. In Render service -> `Environment`, set values for:
 - `job-alert-app`
@@ -41,6 +42,8 @@ This repo now includes:
   - `DISCORD_ALERT_CHANNEL_ID`
   - `DISCORD_ADMIN_ROLE_ID`
   - `DISCORD_COMMAND_GUILD_ID`
+  - `DISCORD_SYNC_COMMANDS_ON_STARTUP=false`
+  - `DISCORD_VALIDATE_STARTUP_RESOURCES=false`
   - `TELEGRAM_BOT_TOKEN`
   - `TELEGRAM_CHAT_ID`
   - `EMAIL_PROVIDER=outlook_graph`
@@ -59,6 +62,7 @@ After this, every push to `main` triggers deploy automatically.
 - `job-alert-db`: shared persistent Postgres database
 
 `/job_run` no longer runs the scan inline. It creates a queued scan request, replies immediately, and reports the result when processing finishes.
+To reduce Discord rate limits on Render restarts, the bot skips slash-command sync and remote channel/guild validation on startup by default.
 
 ### Option B: Local Python
 

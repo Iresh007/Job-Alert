@@ -250,17 +250,21 @@ class DiscordBotService:
         channel_id = settings.discord_alert_channel_id_int
         if not channel_id:
             raise RuntimeError("DISCORD_ALERT_CHANNEL_ID is missing or invalid.")
-        channel = self.client.get_channel(channel_id)
-        if channel is None:
-            channel = await self.client.fetch_channel(channel_id)
-        self._validated_alert_channel = channel is not None
+        self._validated_alert_channel = True
+        if settings.discord_validate_startup_resources:
+            channel = self.client.get_channel(channel_id)
+            if channel is None:
+                channel = await self.client.fetch_channel(channel_id)
+            self._validated_alert_channel = channel is not None
 
         guild_id = settings.discord_command_guild_id_int
         if guild_id:
-            guild = self.client.get_guild(guild_id)
-            if guild is None:
-                guild = await self.client.fetch_guild(guild_id)
-            self._validated_command_guild = guild is not None
+            self._validated_command_guild = True
+            if settings.discord_validate_startup_resources:
+                guild = self.client.get_guild(guild_id)
+                if guild is None:
+                    guild = await self.client.fetch_guild(guild_id)
+                self._validated_command_guild = guild is not None
         else:
             self._validated_command_guild = True
 
@@ -286,15 +290,18 @@ class DiscordBotService:
             try:
                 await self._validate_startup_configuration()
                 if not self._synced:
-                    guild_id = settings.discord_command_guild_id_int
-                    if guild_id:
-                        guild = discord.Object(id=guild_id)
-                        self.tree.copy_global_to(guild=guild)
-                        synced = await self.tree.sync(guild=guild)
-                        log_event("discord_commands_synced", scope="guild", guild_id=guild_id, count=len(synced))
+                    if settings.discord_sync_commands_on_startup:
+                        guild_id = settings.discord_command_guild_id_int
+                        if guild_id:
+                            guild = discord.Object(id=guild_id)
+                            self.tree.copy_global_to(guild=guild)
+                            synced = await self.tree.sync(guild=guild)
+                            log_event("discord_commands_synced", scope="guild", guild_id=guild_id, count=len(synced))
+                        else:
+                            synced = await self.tree.sync()
+                            log_event("discord_commands_synced", scope="global", count=len(synced))
                     else:
-                        synced = await self.tree.sync()
-                        log_event("discord_commands_synced", scope="global", count=len(synced))
+                        log_event("discord_command_sync_skipped")
                     self._synced = True
                 self._mark_healthy()
                 log_event("discord_bot_connected", user=str(self.client.user))

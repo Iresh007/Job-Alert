@@ -17,13 +17,20 @@ jobs:
       - name: Trigger Render deployment
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_DISCORD_BOT_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DISCORD_BOT_DEPLOY_HOOK_URL }}
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "Missing GitHub secret: RENDER_DEPLOY_HOOK_URL"
             exit 1
           fi
           curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
-          echo "Render deployment triggered."
+          echo "Primary Render deployment triggered."
+          if [ -n "$RENDER_DISCORD_BOT_DEPLOY_HOOK_URL" ]; then
+            curl -fsS -X POST "$RENDER_DISCORD_BOT_DEPLOY_HOOK_URL"
+            echo "Discord bot Render deployment triggered."
+          else
+            echo "RENDER_DISCORD_BOT_DEPLOY_HOOK_URL not set. Skipping discord bot deploy hook."
+          fi
 
       - name: Health check (optional)
         env:
