@@ -144,7 +144,14 @@ def health(response: Response) -> dict:
     snapshot["worker_last_error"] = _worker_last_error
     boot_grace = datetime.now(timezone.utc) - _started_at < timedelta(seconds=60)
     overall_healthy = snapshot.get("healthy") and _worker_healthy
-    response.status_code = 200 if overall_healthy or boot_grace else 503
+    response.status_code = 200
     if not overall_healthy and boot_grace:
         snapshot["status"] = "starting"
+    elif not overall_healthy:
+        snapshot["status"] = "degraded"
     return snapshot
+
+
+@app.get("/")
+def root() -> dict:
+    return {"service": "job-alert-discord-bot", "health_path": "/health"}
