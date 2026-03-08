@@ -6,3 +6,4 @@ playwright-report/
 .outlook_graph_token_cache.bin
 results/
 *.log
+job_finder.db

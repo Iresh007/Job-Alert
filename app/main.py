@@ -31,6 +31,7 @@ app.add_middleware(
 repository = JobRepository()
 pipeline = JobPipeline()
 _scheduler = None
+_discord_bot = None
 
 
 def _dashboard_root() -> Path:
@@ -48,6 +49,32 @@ def _build_scheduled_run():
     return scheduled_run
 
 
+async def _run_pipeline_with_new_session() -> dict:
+    db = SessionLocal()
+    try:
+        return await pipeline.run(db)
+    finally:
+        db.close()
+
+
+def _read_profile_with_new_session() -> dict:
+    db = SessionLocal()
+    try:
+        return get_profile(db)
+    finally:
+        db.close()
+
+
+def _write_profile_with_new_session(payload: dict) -> dict:
+    db = SessionLocal()
+    try:
+        updated = update_profile(db, payload)
+    finally:
+        db.close()
+    _restart_scheduler(profile=updated)
+    return updated
+
+
 def _restart_scheduler(profile: dict | None = None) -> None:
     global _scheduler
     if _scheduler:
@@ -58,6 +85,7 @@ def _restart_scheduler(profile: dict | None = None) -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
+    global _discord_bot
     init_db()
     db = SessionLocal()
     try:
@@ -65,12 +93,27 @@ async def startup() -> None:
     finally:
         db.close()
     _restart_scheduler(profile=profile)
+    try:
+        from app.discord_bot import DiscordBotService
+
+        _discord_bot = DiscordBotService(
+            get_profile=_read_profile_with_new_session,
+            update_profile=_write_profile_with_new_session,
+            run_scan=_run_pipeline_with_new_session,
+        )
+        await _discord_bot.start()
+    except Exception as exc:
+        print(f"Discord bot disabled: {exc}")
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    global _discord_bot
     if _scheduler:
         _scheduler.shutdown(wait=False)
+    if _discord_bot:
+        await _discord_bot.stop()
+        _discord_bot = None
 
 
 @app.get("/api/health")

@@ -57,6 +57,8 @@ Open: `http://127.0.0.1:5050/`
 - Dashboard with settings, next scheduled runs, and Excel export
 - Telegram alerts
 - Outlook OAuth (Graph API) email alerts
+- Discord alerts for all newly qualified jobs (not only super-priority)
+- Discord slash commands to run scans and manage settings directly from server
 
 ## Key APIs
 
@@ -78,6 +80,10 @@ OUTLOOK_CLIENT_ID=<azure_app_client_id>
 OUTLOOK_TENANT=consumers
 OUTLOOK_GRAPH_SCOPES=https://graph.microsoft.com/Mail.Send,https://graph.microsoft.com/User.Read
 OUTLOOK_TOKEN_CACHE_FILE=.outlook_graph_token_cache.bin
+TELEGRAM_NOTIFY_ALL_JOBS=true
+TELEGRAM_ALERT_MAX_PER_RUN=20
+EMAIL_NOTIFY_ALL_JOBS=true
+EMAIL_ALERT_MAX_PER_RUN=50
 ```
 
 For Render deployments, no `.env` file is committed. Configure these keys in Render `Environment`.
@@ -96,6 +102,35 @@ Test email:
 $env:PYTHONPATH='.'
 .\.venv\Scripts\python scripts\test_email.py --subject "Email connected" --message "Outlook Graph is working"
 ```
+
+## Discord Setup (Alerts + Settings Control)
+
+Set in `.env`:
+
+```env
+DISCORD_BOT_TOKEN=<discord_bot_token>
+DISCORD_ALERT_CHANNEL_ID=<channel_id_for_alerts>
+DISCORD_ADMIN_ROLE_ID=<optional_admin_role_id>
+DISCORD_COMMAND_GUILD_ID=<optional_guild_id_for_fast_command_sync>
+DISCORD_ALERT_MAX_PER_RUN=50
+```
+
+Bot requirements:
+
+- Invite the bot with `bot` and `applications.commands` scopes.
+- Grant `Send Messages` permission in your alert channel.
+- If you set `DISCORD_ADMIN_ROLE_ID`, only members with that role (or server admins) can run settings/scan commands.
+
+After restart, use slash commands in your server:
+
+- `/job_help`
+- `/job_run`
+- `/job_settings`
+- `/job_set`
+- `/job_add`
+- `/job_remove`
+
+`/job_set` supports all profile fields. For list fields (`roles`, `locations`, `skills`, `scan_times`, `excluded_companies`) use comma-separated values.
 
 ## Notes
 

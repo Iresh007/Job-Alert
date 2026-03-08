@@ -56,10 +56,11 @@ class JobRepository:
         raw_jobs: List[dict],
         excluded_companies: List[str],
         preferred_skills: List[str] | None = None,
-    ) -> tuple[int, int, list]:
+    ) -> tuple[int, int, list, list]:
         inserted = 0
         qualified = 0
         super_priority_jobs: list = []
+        alert_jobs: list = []
         preferred_skills = preferred_skills or []
 
         for raw in raw_jobs:
@@ -102,6 +103,17 @@ class JobRepository:
             self.dedupe.persist_fingerprint(db, raw)
             inserted += 1
             qualified += 1
+            alert_jobs.append(
+                {
+                    "title": model.title,
+                    "company": model.company,
+                    "location": model.location,
+                    "url": model.url,
+                    "interview_probability": model.interview_probability,
+                    "is_super_priority": model.is_super_priority,
+                    "is_ultra_low_competition": model.is_ultra_low_competition,
+                }
+            )
             if score.is_super_priority:
                 super_priority_jobs.append(
                     {
@@ -115,7 +127,7 @@ class JobRepository:
                 )
 
         db.commit()
-        return inserted, qualified, super_priority_jobs
+        return inserted, qualified, super_priority_jobs, alert_jobs
 
     def list_jobs(self, db: Session, min_score: float = 70, limit: int = 300, super_only: bool = False) -> List[Job]:
         query = select(Job).where(Job.interview_probability >= min_score)

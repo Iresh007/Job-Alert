@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
+    telegram_notify_all_jobs: bool = Field(default=False, alias="TELEGRAM_NOTIFY_ALL_JOBS")
+    telegram_alert_max_per_run: int = Field(default=20, alias="TELEGRAM_ALERT_MAX_PER_RUN")
 
     email_host: str = Field(default="", alias="EMAIL_HOST")
     email_port: int = Field(default=587, alias="EMAIL_PORT")
@@ -32,6 +34,8 @@ class Settings(BaseSettings):
     email_from: str = Field(default="", alias="EMAIL_FROM")
     email_to: str = Field(default="", alias="EMAIL_TO")
     email_provider: str = Field(default="smtp", alias="EMAIL_PROVIDER")
+    email_notify_all_jobs: bool = Field(default=False, alias="EMAIL_NOTIFY_ALL_JOBS")
+    email_alert_max_per_run: int = Field(default=50, alias="EMAIL_ALERT_MAX_PER_RUN")
 
     outlook_client_id: str = Field(default="", alias="OUTLOOK_CLIENT_ID")
     outlook_tenant: str = Field(default="consumers", alias="OUTLOOK_TENANT")
@@ -40,6 +44,11 @@ class Settings(BaseSettings):
         alias="OUTLOOK_GRAPH_SCOPES",
     )
     outlook_token_cache_file: str = Field(default=".outlook_graph_token_cache.bin", alias="OUTLOOK_TOKEN_CACHE_FILE")
+    discord_bot_token: str = Field(default="", alias="DISCORD_BOT_TOKEN")
+    discord_alert_channel_id: str = Field(default="", alias="DISCORD_ALERT_CHANNEL_ID")
+    discord_admin_role_id: str = Field(default="", alias="DISCORD_ADMIN_ROLE_ID")
+    discord_command_guild_id: str = Field(default="", alias="DISCORD_COMMAND_GUILD_ID")
+    discord_alert_max_per_run: int = Field(default=50, alias="DISCORD_ALERT_MAX_PER_RUN")
 
     default_excluded_companies: str = Field(default="EXL Services", alias="DEFAULT_EXCLUDED_COMPANIES")
     default_roles: str = Field(
@@ -71,6 +80,21 @@ class Settings(BaseSettings):
         return self.project_root / self.outlook_token_cache_file
 
     @property
+    def discord_alert_channel_id_int(self) -> int | None:
+        raw = (self.discord_alert_channel_id or "").strip()
+        return int(raw) if raw.isdigit() else None
+
+    @property
+    def discord_admin_role_id_int(self) -> int | None:
+        raw = (self.discord_admin_role_id or "").strip()
+        return int(raw) if raw.isdigit() else None
+
+    @property
+    def discord_command_guild_id_int(self) -> int | None:
+        raw = (self.discord_command_guild_id or "").strip()
+        return int(raw) if raw.isdigit() else None
+
+    @property
     def role_list(self) -> List[str]:
         return [item.strip() for item in self.default_roles.split(",") if item.strip()]
 
@@ -90,3 +114,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
